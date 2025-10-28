@@ -1,0 +1,128 @@
+import React, { useEffect, useState } from "react";
+import {
+  Container,
+  Typography,
+  Snackbar,
+  Alert,
+  Box,
+  Paper,
+  Button,
+} from "@mui/material";
+import AddBookForm from "./AddBookForm";
+import BookList from "./BookList";
+import EditBookModal from "./EditBookModal";
+import DeleteConfirmationPopup from "./DeleteConfirmationPopup";
+import axios from "axios";
+
+const baseURL = "http://localhost:5000/api/books";
+
+const App = () => {
+  const [books, setBooks] = useState([]);
+  const [alert, setAlert] = useState({ open: false, message: "", severity: "success" });
+  const [editingBook, setEditingBook] = useState(null);
+  const [deletingBook, setDeletingBook] = useState(null);
+
+  // Fetch all books
+  const fetchBooks = async () => {
+    try {
+      const res = await axios.get(baseURL);
+      setBooks(res.data);
+    } catch (error) {
+      setAlert({
+        open: true,
+        message: "Failed to fetch books.",
+        severity: "error",
+      });
+    }
+  };
+
+  useEffect(() => {
+    fetchBooks();
+  }, []);
+
+  // Add Book
+  const handleAddBook = async (book) => {
+    try {
+      const res = await axios.post(baseURL, book);
+      setBooks((prev) => [...prev, res.data]);
+      setAlert({ open: true, message: "Book added successfully!", severity: "success" });
+    } catch (error) {
+      setAlert({ open: true, message: "Failed to add book.", severity: "error" });
+    }
+  };
+
+  // Edit Book
+  const handleEditBook = async (id, updatedBook) => {
+    try {
+      const res = await axios.put(`${baseURL}/${id}`, updatedBook);
+      setBooks((prev) =>
+        prev.map((book) => (book._id === id ? res.data : book))
+      );
+      setAlert({ open: true, message: "Book updated successfully!", severity: "success" });
+      setEditingBook(null);
+    } catch (error) {
+      setAlert({ open: true, message: "Failed to update book.", severity: "error" });
+    }
+  };
+
+  // Delete Book
+  const handleDeleteBook = async (id) => {
+    try {
+      await axios.delete(`${baseURL}/${id}`);
+      setBooks((prev) => prev.filter((book) => book._id !== id));
+      setAlert({ open: true, message: "Book deleted successfully!", severity: "success" });
+      setDeletingBook(null);
+    } catch (error) {
+      setAlert({ open: true, message: "Failed to delete book.", severity: "error" });
+    }
+  };
+
+  return (
+    <Container maxWidth="md" sx={{ mt: 5 }}>
+      <Paper elevation={3} sx={{ p: 4 }}>
+        <Typography variant="h4" align="center" gutterBottom>
+          Book Inventory Management
+        </Typography>
+        <Box sx={{ mb: 3 }}>
+          <AddBookForm onAddBook={handleAddBook} />
+        </Box>
+        <BookList
+          books={books}
+          onEdit={(book) => setEditingBook(book)}
+          onDelete={(book) => setDeletingBook(book)}
+        />
+      </Paper>
+
+      <EditBookModal
+        open={!!editingBook}
+        book={editingBook}
+        onClose={() => setEditingBook(null)}
+        onSave={handleEditBook}
+      />
+
+      <DeleteConfirmationPopup
+        open={!!deletingBook}
+        book={deletingBook}
+        onClose={() => setDeletingBook(null)}
+        onConfirm={() => handleDeleteBook(deletingBook._id)}
+      />
+
+      <Snackbar
+        open={alert.open}
+        autoHideDuration={4000}
+        onClose={() => setAlert({ ...alert, open: false })}
+        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
+      >
+        <Alert
+          onClose={() => setAlert({ ...alert, open: false })}
+          severity={alert.severity}
+          sx={{ width: "100%" }}
+        >
+          {alert.message}
+        </Alert>
+      </Snackbar>
+    </Container>
+  );
+};
+
+export default App;
